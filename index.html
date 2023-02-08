@@ -1,0 +1,364 @@
+<!doctype html>
+<html>
+
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <title>Missing Data</title>
+
+  <meta name="description" content="Missing data presentation, EMUNE Consortium Meeting, 2023-01-16">
+  <meta name="author" content="Yannik Schaelte">
+
+  <link rel="stylesheet" href="reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="reveal.js/dist/theme/white.css" id="theme">
+
+  <!-- Theme used for syntax highlighted code -->
+  <link rel="stylesheet" href="reveal.js/plugin/highlight/monokai.css" id="highlight-theme">
+
+  <link rel="stylesheet" href="ystyle.css">
+</head>
+
+
+<!--
+Helmholtz colors:
+Purple #69005F
+Red #FF506E
+-->
+
+<!--
+Bonn colors:
+Blue #07529a
+Yellow #eab90c
+-->
+
+
+<body>
+  <div class="reveal">
+    <div class="slides" id="id_slides">
+
+      <section data-transition="slide-in fade-out">
+        <img src="img/front.svg" alt="Front page" />
+      </section>
+
+      <!--<section data-background-image="img/missing_piece_puzzle.jpg" data-background-transition="zoom" data-background-opacity="0.3">
+        <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
+        <h1 style="text-align:left;">Handling missing data in amortized inference</h1>
+      </section>-->
+
+      <section data-background-image="img/missing_piece_puzzle.jpg" data-background-transition="zoom"
+        data-background-opacity="0.05">
+        <img src="img_npe/missing_datas.svg" class="r-stretch fragment" />
+        <br /><br />
+        <h2 style="text-align:left;">How to handle missing data in amortized inference?</h2>
+      </section>
+
+      <section>
+        <h2>Problem: BayesFlow cannot interpret the data</h2>
+        <img src="img_npe/deletion.png" class="r-stretch" />
+        (besides iid + time-series data of heterogeneous length)
+      </section>
+
+      <section>
+
+        <section>
+          <h2>BayesFlow</h2>
+          <img src="img_npe/bayesflow_concept.png" />
+          <div style="text-align: right;"><small>from: Radev et al, IEEE Transactions on Neural Networks 2020</small>
+          </div>
+        </section>
+
+        <section>
+          <p>
+          <h3>The problem</h3>
+          <ul>
+            <li>Classical simulation-based inference is case-based + slow + $\varepsilon$-approximate</li>
+            <li>What if we want to fit the same model to multiple datasets?</li>
+          </ul>
+          </p>
+          <p>
+          <h3>The idea</h3>
+          <ul>
+            <li>Learn a global estimator for the probabilistic mapping $y\mapsto\theta$ via cINNs</li>
+            <li>Once trained, amortize inference on arbitrarily many datasets</li>
+            <li>Embed data via summary statistics model</li>
+          </ul>
+          </p>
+        </section>
+
+
+        <section>
+          <h2>Generative models</h2>
+          generate new data instances, $x\sim\pi(X|Y=y)$
+          <img src="img_npe/glow_faces.png" class="r-stretch" />
+          <div style="text-align: right;"><small>from: Kingma et al, NeurIPS 2019</small></div>
+          e.g.: GANs, VAEs, Flows
+        </section>
+
+
+        <section>
+          <h2>Normalizing flows</h2>
+          generative models based on an invertible transformation
+          <img src="img_npe/normalizing_flows.png" class="r-stretch" />
+          <div style="text-align: left;">
+            Let $z\sim\mathcal{N}(0, I)$ and $f: z\mapsto x$ bijective.
+            Then via change of variable,s the pdf of $x=f(z)$ is given as
+            $$p_x(x) = p_z(f^{-1}(x))\cdot|\text{det}(\tfrac{df^{-1}}{dx}(x))|.$$
+            <ul>
+              <li>in training, transform data points to simple distribution</li>
+              <li>trained via negative log-likelihood</li>
+              <li>afterwards, generate samples via $f^{-1}(z)$ with $z\sim\mathcal{N}(0,I)$
+          </div>
+        </section>
+
+
+        <section>
+          <h2>The problem</h2>
+          <ul>
+            <li>forward model $x_i\sim p(x|\theta) \Leftrightarrow x_i = g(\theta,\xi_i)$ with $\xi_i\sim p(\xi)$</li>
+            <li>Bayesian inference $p(\theta|x_{1:N}) \propto p(x_{1:N}|\theta)p(\theta)$</li>
+            <li>aim: train an invertible neural network that approximates the true posterior $p_\phi(\theta|x) \approx
+              p(\theta|x)$ $\forall \theta,x$</li>
+          </ul>
+        </section>
+
+
+        <section>
+          <h2>The method</h2>
+          Goal: Approximate the true posterior $p_\phi(\theta|x) \approx p(\theta|x)$ $\forall \theta,x$.
+          <br /><br />
+          Parameterize $p_\phi$ in terms of a cINN given via a bijective $f_\phi:\mathbb{R}^D\rightarrow\mathbb{R}^D$,
+          $\theta\mapsto z$, which implements a normalizing flow between $\theta$ and a Gaussian latent variable $z$,
+          $$\theta\sim p_\phi(\theta|x) \Leftrightarrow \phi = f^{-1}_\phi(z; x)\quad\text{with}\quad
+          z\sim\mathcal{N}_D(z|0,I).$$
+          <br /><br />
+          Seek neural network parameters $\hat\phi$ that minimize the KL divergence between true and approximate
+          posterior $\forall x$, giving the objective ...
+        </section>
+
+
+        <section>
+          <h2>The method</h2>
+          \begin{equation*}
+          \begin{split}
+          \hat\phi &= \arg\min_\phi\mathbb{E}_{p(x)}[\text{KL}(p(\theta|x)\!\mid\mid\! p_\phi(\theta|x))]\\
+          &= \arg\max_\phi\iint p(x,\theta)\log p_\phi(\theta|x)dxd\theta\\
+          &= \arg\max_\phi\iint p(x,\theta)(\log p(f_\phi(\theta;x)) + \log |\det J_{f_\phi}|)dxd\theta
+          \end{split}
+          \end{equation*}
+          Approximate via Monte-Carlo sample:
+          \begin{equation*}
+          \begin{split}
+          \hat\phi &= \arg\min_\phi\frac 1 M\sum_{m=1}^M(-\log p(f_\phi(\theta^{(m)};x^{(m)})) - \log |\det
+          J_{f_\phi}^{(m)}|\\
+          &= \arg\min_\phi\frac 1 M\sum_{m=1}^M\left(\frac{|f_\phi(\theta^{(m)};x^{(m)})|_2^2}{2} - \log |\det
+          J_{f_\phi}^{(m)}|\right)
+          \end{split}
+          \end{equation*}
+        </section>
+
+
+        <section>
+          <h2>Summary statistics learning</h2>
+          If data $x_{1:N}$ are high-dimensional: Jointly learn a summary network $\tilde x = h_\psi(x_{1:N})$, giving
+          the objective
+          $$
+          \hat\phi,\hat\psi = \arg\max_{\phi,\psi)}\mathbb{E}_{p(x,\theta,N)}[\log p_\phi(\theta|h_\psi(x_{1:N})]
+          $$
+          with Monte-Carlo estimate
+          $$
+          \hat\phi,\hat\psi = \arg\min_{\phi,\psi}\frac 1 M
+          \sum_{m=1}^M\left(\frac{|f_\phi(\theta^{(m)};h_\psi(x_{1:N}^{(m)})|_2^2}{2} -
+          \log|\det(J_{f_\phi}^{(m)})|\right)
+          $$
+        </section>
+
+
+        <section>
+          <div style="text-align: left">
+            Learning phase:<br />
+            <ul>
+              <li>create plenty of synthetic data $(y_i,\theta_i)\sim\pi(y,\theta)$</li>
+              <li>train a cINN in forward mode</li>
+            </ul>
+            <br /><br />
+            Inference phase:<br />
+            <ul>
+              <li>sample many latent $z_i\sim\pi(z)$</li>
+              <li>run cINN backwards, $\theta_i = g(z_i; y_\text{obs}) \sim \pi(\theta|y_\text{obs})$</li>
+            </ul>
+            <br /><br />
+            <ul style="list-style-type: '✓ ';">
+              <li>fast + accurate amortized Bayesian inference</li>
+            </ul>
+          </div>
+        </section>
+      </section>
+
+      <section>
+        <h2>Encode missing data</h2>
+        <img src="img_npe/concept_bayesflow_missingdata2.png" class="r-stretch" />
+      </section>
+
+      <section>
+        <img src="img_npe/algorithm.png" class="r-stretch" />
+      </section>
+
+      <section data-background="#073669ff" data-background-transition="zoom">
+        <h1>Results</h1>
+      </section>
+
+      <section>
+        All approaches perform well on simple test problem<br/>
+        <img src="img_npe/icon_cr.svg" height="60px"/>
+        <img src="img_npe/CR3.png" class="r-stretch" />
+      </section>
+
+      <section>
+        Binary indicator augmentation more<br />robust for ambiguous fill-in values
+        <img src="img_npe/Figure3.svg" class="r-stretch" />
+      </section>
+
+      <section>
+        Time labels encoding performs not robustly in case of oscillatory data<br/>
+        <img src="img_npe/icon_sin.svg" height="60px"/><br/>
+        <img src="img_npe/Osc_augment_time_quantile.png" class="r-stretch" />
+      </section>
+
+      <section>
+        <img src="img_npe/Osc_convergence_log.svg" />
+      </section>
+
+      <section>
+        Variable dataset size as a special case of missing data<br/>
+        <img src="img_npe/Variable_length_loss.svg" width="48%" />
+        <img src="img_npe/Variable_length_rl.svg" width="48%" />
+        Augment by 0/1 improves performance due to better cost function approximation with individual-specific missingness
+      </section>
+
+      <section>
+        Scales to more complex inference problems<br/>
+        <img src="img_npe/icon_sir.svg" height="60px"/><br/>
+        <img src="img_npe/SIR.png" class="r-stretch" />
+      </section>
+
+      <section>
+        Able to unravel parameter-dependent missingness<br/>
+        <img src="img_npe/CR11_missingness_par_augment01.png" class="r-stretch" />
+      </section>
+
+      <section>
+        <h2>Can we just impute missing values?</h2>
+        <div class="r-stack">
+          <img src="img_npe/impute1.svg" width="80%" />
+          <img src="img_npe/impute2.svg" width="80%" class="fragment" />
+        </div>
+      </section>
+
+      <section>
+        Inappropriate imputation can lead to biased results
+        <img src="img_npe/linear_interpolation.png" class="r-stretch" />
+      </section>
+
+      <section>
+        <h3>There are no free data</h3>
+        <div style="text-align: left; font-size: 10pt;">
+          Imputation means that instead of working with available data $x$, we try to reconstruct the full data $\bar
+          x$,
+          and estimate parameter probabilities $\pi(\theta|\bar x)$ instead of $\pi(\theta|x)$.
+          However, the true full data are unknown, therefore we need to take uncertainty in $\bar x$ into account,
+          considering a full distribution of values $\pi(\bar x|x)$.
+
+          <p />
+          We must either make up a distribution (introducing a bias), or use a faithful approximation
+          $p(\bar x|x) = \pi(\bar x|x)$ where $\pi(\bar x|x)\pi(x) = \pi(\bar x, x)$.
+
+          <p />
+          However, if we integrate out over all possible realizations of full data, we obtain
+          $\int \pi(\theta|\bar x)\pi(\bar x|x)d\bar x = \pi(\theta|x)$ (or similarly $\pi(\theta|x,\tau)$).
+        </div>
+        TLDR: When doing uncertainty quantification properly, we just recover the same posterior.
+      </section>
+
+      <section data-background="#073669ff" data-background-transition="zoom" data-auto-animate>
+        <h1>Discussion</h1>
+      </section>
+
+      <section data-auto-animate>
+        <h1>Discussion</h1>
+        <font class="fragment">Preprint: <a href="https://tinyurl.com/3cydyxtv">https://tinyurl.com/3cydyxtv</a></font>
+        <div class="fragment" style="text-align: left; align: left;">
+          Summary:
+          <ul>
+            <li class="fragment">Missing data are ubiquitous in experimental studies</li>
+            <li class="fragment">We enabled amortized inference via BayesFlow for such data</li>
+            <li class="fragment">... by encoding missing values appropriately</li>
+            <li class="fragment">... and training BayesFlow on a large set of artificially incomplete data</li>
+            <li class="fragment">Robust performance on various examples</li>
+            <li class="fragment">With some more general implications</li>
+          </ul>
+          <br/><br/>
+          <div class="fragment" style="text-align: left; align: left;">
+            Outlook<br/>
+            <ul>
+              <li class="fragment">More challenging applications</li>
+              <li class="fragment">In combination with NLME</li>
+              <li class="fragment">Accuracy - simulation tradeoff</li>
+              <li class="fragment">...</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+
+
+      <!--<section data-background="#073669ff" data-background-transition="zoom">
+        <h1>Outlook</h1>
+      </section>
+
+      <section>
+        <ul>
+          <li>Finishing up</li>
+          <li>Amortized inference for mixed-effects models</li>
+          <li></li>
+        </ul>
+      </section>-->
+
+
+      <section data-background-image="img/questions.jpg" data-background-opacity="0.3">
+        <h1>Thanks! Questions?</h1>
+      </section>
+
+    </div>
+  </div>
+
+
+  <script src="reveal.js/dist/reveal.js"></script>
+  <script src="reveal.js/plugin/zoom/zoom.js"></script>
+  <script src="reveal.js/plugin/notes/notes.js"></script>
+  <script src="reveal.js/plugin/markdown/markdown.js"></script>
+  <script src="reveal.js/plugin/highlight/highlight.js"></script>
+  <script src="reveal.js/plugin/math/math.js"></script>
+  <script>
+    // More info about initialization & config:
+    // - https://revealjs.com/initialization/
+    // - https://revealjs.com/config/
+    Reveal.initialize({
+      controls: true,
+      progress: true,
+      center: true,
+      hash: true,
+
+      // Learn about plugins: https://revealjs.com/plugins/
+      plugins: [RevealMarkdown, RevealHighlight, RevealNotes,
+        RevealMath, RevealZoom]
+    });
+    Reveal.configure({ slideNumber: 'c/t' });
+    Reveal.configure({ showSlideNumber: 'all' });
+
+  </script>
+</body>
+
+</html>
