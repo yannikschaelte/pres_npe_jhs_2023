@@ -13,7 +13,7 @@
 
   <link rel="stylesheet" href="reveal.js/dist/reset.css">
   <link rel="stylesheet" href="reveal.js/dist/reveal.css">
-  <link rel="stylesheet" href="reveal.js/dist/theme/white.css" id="theme">
+  <link rel="stylesheet" href="ywhite.css" id="theme">
 
   <!-- Theme used for syntax highlighted code -->
   <link rel="stylesheet" href="reveal.js/plugin/highlight/monokai.css" id="highlight-theme">
@@ -40,16 +40,90 @@ Yellow #eab90c
     <div class="slides" id="id_slides">
 
       <section data-transition="slide-in fade-out">
-        <img src="img/front.svg" alt="Front page" />
+        <img src="img/front.svg" alt="Front page" class="r-stretch"/>
       </section>
 
-      <!--<section data-background-image="img/missing_piece_puzzle.jpg" data-background-transition="zoom" data-background-opacity="0.3">
-        <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
-        <h1 style="text-align:left;">Handling missing data in amortized inference</h1>
-      </section>-->
+      <section>
+        <div class="r-stack" id="id_sciml_div" style="padding: 0px; margin: 0px;">
+            <script>
+                var node = document.getElementById("id_sciml_div");
+                node.innerHTML += "<img src='img/sciml1.svg'/>"
+                var i;
+                for (i = 2; i <= 5; i++) {
+                    node.innerHTML += "<img src='img/sciml" + i + ".svg' class='fragment'/>"
+                }  
+            </script>
+        </div>
+      </section>
+
+      <section>
+        <h2>mixed-effects modeling</h2>
+        <img src="img/mixed_effects.svg"/>
+        <div style="text-align: left;">
+          <table style="border: none;" class="fragment">
+            <tr style="border: none;"><td style="border: none;">dynamical model:</td><td style="border: none;">$\dot x = f(x,\theta)$</td></tr>
+            <tr style="border: none;"><td style="border: none;">observables:</td><td style="border: none;">$y = h(x, \theta) + \varepsilon$</td></tr>
+            <tr style="border: none;"><td style="border: none;">parameters:</td><td style="border: none;">$\theta = A\alpha + B\beta,\quad\beta\sim\mathcal{N}(0,\Sigma)$</td></tr>
+          </table>
+          
+        </div>
+      </section>
+
+      <section>
+        <h2>the problem</h2>
+        <ul style="text-align: left;">
+          <li>
+            <b>estimate parameters:</b> maximize over $\alpha$ and $\Sigma$ the likelihood of data $y_\text{obs}$, marginalized over random effects $\beta$,
+            $$\pi(y_\text{obs}|\alpha,\Sigma) = \prod_i\int\pi(y_i|\theta)\pi(\theta|\alpha,\Sigma)d\theta$$
+          </li>
+          <li class="fragment" data-fragment-index="1"><b style="color: #5c2874;">problem: evaluating these (high-dim) integrals is challenging</b>,<br/>
+            especially with many individuals<br/><br/></li>
+        </ul>
+        <img class="fragment" data-fragment-index="1" src="img/compute_time.svg" class="r-stretch"/>
+      </section>
+      
+      <section>
+        <h2>amortized inference via invertible neural networks</h2>
+        you have to solve many similar problems? amortize the solution!
+        <img src="img/bayesflow.svg" class="r-stretch"/>
+        <div style="text-align:right;"><small>similar to: Radev et al., 2021</small></div>
+      </section>
+
+      <section>
+        <ul style="text-align: left;">
+          <li>
+            parameter estimation requires repeatedly evaluating an integral
+            $$\pi(y_\text{obs}|\alpha,\Sigma) = \prod_i\int\pi(y_i|\theta)\pi(\theta|\alpha,\Sigma)d\theta$$
+          </li>
+        </ul>
+        <br/>
+        <h2 class="fragment">our method</h2>
+        <ul style="text-align: left;">
+          <li class="fragment" style="text-align: left;">
+            <b>idea:</b> rewrite in terms of an <b>individual-specific posterior:</b>
+            $$\begin{split}\pi(y_\text{obs}|\alpha,\Sigma) &= \prod_i\pi(y_i)\int\pi(\theta|y_i)\frac{\pi(\theta|\alpha,\Sigma)}{\pi(\theta)}d\theta \\&= \prod_i\pi(y_i)\mathbb{E}_{\theta\sim\pi(\theta|y_i)}\left[\frac{\pi(\theta|\alpha,\Sigma)}{\pi(\theta)}\right]\end{split}$$
+          </li>
+          <li class="fragment">... and approximate the posterior using a <b style="color: #5c2874;">neural density estimator</b> trained on synthetic data!</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>results</h2>
+        <ul style="list-style-type: '✓ ';">
+          <li class="fragment" data-fragment-index="1">NN <b>fits the posterior</b> well</li>
+          <li class="fragment" data-fragment-index="2">after training once ($1-2h$), the optimization is <b>very fast</b> ($s-min$)</li>
+          <li class="fragment" data-fragment-index="3">even <b>uncertainty analysis</b> easily possible</li>
+          <li class="fragment" data-fragment-index="4">can handle multiple <b>experiment conditions</b></li>
+        </ul>
+        <div class="r-stack">
+          <img class="fragment current-visible" data-fragment-index="1" src="img/ame_results_fit.svg" height="250px"/>
+          <img class="fragment current-visible" data-fragment-index="2" src="img/ame_results_speedup.svg" height="250px"/>
+          <img class="fragment" data-fragment-index="3" src="img/ame_results_uncertainty.png" height="250px"/>
+        </div>
+      </section>
 
       <section data-background-image="img/missing_piece_puzzle.jpg" data-background-transition="zoom"
-        data-background-opacity="0.05">
+        data-background-opacity="0.1">
         <img src="img_npe/missing_datas.svg" class="r-stretch fragment" />
         <br /><br />
         <h2 style="text-align:left;">How to handle missing data in amortized inference?</h2>
@@ -58,12 +132,92 @@ Yellow #eab90c
       <section>
         <h2>Problem: BayesFlow cannot interpret the data</h2>
         <img src="img_npe/deletion.png" class="r-stretch" />
-        (besides iid + time-series data of heterogeneous length)
       </section>
 
       <section>
+        <h2>Encode missing data</h2>
+        <img src="img_npe/concept_bayesflow_missingdata2.png" class="r-stretch" />
+      </section>
 
-        <section>
+      <section>
+      <section>
+        All approaches perform well on simple test problem<br/>
+        <img src="img_npe/icon_cr.svg" height="60px"/>
+        <img src="img_npe/CR3.png" class="r-stretch" />
+      </section>
+
+      <section>
+        Binary indicator augmentation more<br />robust for ambiguous fill-in values
+        <img src="img_npe/Figure3.svg" class="r-stretch" />
+      </section>
+
+      <section>
+        Time labels encoding performs not robustly in case of oscillatory data<br/>
+        <img src="img_npe/icon_sin.svg" height="60px"/><br/>
+        <img src="img_npe/Osc_augment_time_quantile.png" class="r-stretch" />
+      </section>
+
+      <section>
+        <img src="img_npe/Osc_convergence_log.svg" />
+      </section>
+
+      <section>
+        Variable dataset size as a special case of missing data<br/>
+        <img src="img_npe/Variable_length_loss.svg" width="48%" />
+        <img src="img_npe/Variable_length_rl.svg" width="48%" />
+        Augment by 0/1 improves performance due to better cost function approximation with individual-specific missingness
+      </section>
+
+      <section>
+        Scales to more complex inference problems<br/>
+        <img src="img_npe/icon_sir.svg" height="60px"/><br/>
+        <img src="img_npe/SIR.png" class="r-stretch" />
+      </section>
+
+      <section>
+        Able to unravel parameter-dependent missingness<br/>
+        <img src="img_npe/CR11_missingness_par_augment01.png" class="r-stretch" />
+      </section>
+
+      <section>
+        <h2>Can we just impute missing values?</h2>
+        <div class="r-stack">
+          <img src="img_npe/impute1.svg" width="80%" />
+          <img src="img_npe/impute2.svg" width="80%" class="fragment" />
+        </div>
+      </section>
+
+      <section>
+        Inappropriate imputation can lead to biased results
+        <img src="img_npe/linear_interpolation.png" class="r-stretch" />
+      </section>
+
+      <section>
+        <h3>There are no free data</h3>
+        <div style="text-align: left; font-size: 10pt;">
+          Imputation means that instead of working with available data $x$, we try to reconstruct the full data $\bar
+          x$,
+          and estimate parameter probabilities $\pi(\theta|\bar x)$ instead of $\pi(\theta|x)$.
+          However, the true full data are unknown, therefore we need to take uncertainty in $\bar x$ into account,
+          considering a full distribution of values $\pi(\bar x|x)$.
+
+          <p />
+          We must either make up a distribution (introducing a bias), or use a faithful approximation
+          $p(\bar x|x) = \pi(\bar x|x)$ where $\pi(\bar x|x)\pi(x) = \pi(\bar x, x)$.
+
+          <p />
+          However, if we integrate out over all possible realizations of full data, we obtain
+          $\int \pi(\theta|\bar x)\pi(\bar x|x)d\bar x = \pi(\theta|x)$ (or similarly $\pi(\theta|x,\tau)$).
+        </div>
+        TLDR: When doing uncertainty quantification properly, we just recover the same posterior.
+      </section>
+      </section>
+
+      <section data-background-image="img/questions.jpg" data-background-opacity="0.3">
+        <h1 style="color: #5c2874ff;">Thanks! Questions?</h1>
+      </section>
+
+       <section>
           <h2>BayesFlow</h2>
           <img src="img_npe/bayesflow_concept.png" />
           <div style="text-align: right;"><small>from: Radev et al, IEEE Transactions on Neural Networks 2020</small>
@@ -195,141 +349,6 @@ Yellow #eab90c
             </ul>
           </div>
         </section>
-      </section>
-
-      <section>
-        <h2>Encode missing data</h2>
-        <img src="img_npe/concept_bayesflow_missingdata2.png" class="r-stretch" />
-      </section>
-
-      <section>
-        <img src="img_npe/algorithm.png" class="r-stretch" />
-      </section>
-
-      <section data-background="#073669ff" data-background-transition="zoom">
-        <h1>Results</h1>
-      </section>
-
-      <section>
-        All approaches perform well on simple test problem<br/>
-        <img src="img_npe/icon_cr.svg" height="60px"/>
-        <img src="img_npe/CR3.png" class="r-stretch" />
-      </section>
-
-      <section>
-        Binary indicator augmentation more<br />robust for ambiguous fill-in values
-        <img src="img_npe/Figure3.svg" class="r-stretch" />
-      </section>
-
-      <section>
-        Time labels encoding performs not robustly in case of oscillatory data<br/>
-        <img src="img_npe/icon_sin.svg" height="60px"/><br/>
-        <img src="img_npe/Osc_augment_time_quantile.png" class="r-stretch" />
-      </section>
-
-      <section>
-        <img src="img_npe/Osc_convergence_log.svg" />
-      </section>
-
-      <section>
-        Variable dataset size as a special case of missing data<br/>
-        <img src="img_npe/Variable_length_loss.svg" width="48%" />
-        <img src="img_npe/Variable_length_rl.svg" width="48%" />
-        Augment by 0/1 improves performance due to better cost function approximation with individual-specific missingness
-      </section>
-
-      <section>
-        Scales to more complex inference problems<br/>
-        <img src="img_npe/icon_sir.svg" height="60px"/><br/>
-        <img src="img_npe/SIR.png" class="r-stretch" />
-      </section>
-
-      <section>
-        Able to unravel parameter-dependent missingness<br/>
-        <img src="img_npe/CR11_missingness_par_augment01.png" class="r-stretch" />
-      </section>
-
-      <section>
-        <h2>Can we just impute missing values?</h2>
-        <div class="r-stack">
-          <img src="img_npe/impute1.svg" width="80%" />
-          <img src="img_npe/impute2.svg" width="80%" class="fragment" />
-        </div>
-      </section>
-
-      <section>
-        Inappropriate imputation can lead to biased results
-        <img src="img_npe/linear_interpolation.png" class="r-stretch" />
-      </section>
-
-      <section>
-        <h3>There are no free data</h3>
-        <div style="text-align: left; font-size: 10pt;">
-          Imputation means that instead of working with available data $x$, we try to reconstruct the full data $\bar
-          x$,
-          and estimate parameter probabilities $\pi(\theta|\bar x)$ instead of $\pi(\theta|x)$.
-          However, the true full data are unknown, therefore we need to take uncertainty in $\bar x$ into account,
-          considering a full distribution of values $\pi(\bar x|x)$.
-
-          <p />
-          We must either make up a distribution (introducing a bias), or use a faithful approximation
-          $p(\bar x|x) = \pi(\bar x|x)$ where $\pi(\bar x|x)\pi(x) = \pi(\bar x, x)$.
-
-          <p />
-          However, if we integrate out over all possible realizations of full data, we obtain
-          $\int \pi(\theta|\bar x)\pi(\bar x|x)d\bar x = \pi(\theta|x)$ (or similarly $\pi(\theta|x,\tau)$).
-        </div>
-        TLDR: When doing uncertainty quantification properly, we just recover the same posterior.
-      </section>
-
-      <section data-background="#073669ff" data-background-transition="zoom" data-auto-animate>
-        <h1>Discussion</h1>
-      </section>
-
-      <section data-auto-animate>
-        <h1>Discussion</h1>
-        <font class="fragment">Preprint: <a href="https://tinyurl.com/3cydyxtv">https://tinyurl.com/3cydyxtv</a></font>
-        <div class="fragment" style="text-align: left; align: left;">
-          Summary:
-          <ul>
-            <li class="fragment">Missing data are ubiquitous in experimental studies</li>
-            <li class="fragment">We enabled amortized inference via BayesFlow for such data</li>
-            <li class="fragment">... by encoding missing values appropriately</li>
-            <li class="fragment">... and training BayesFlow on a large set of artificially incomplete data</li>
-            <li class="fragment">Robust performance on various examples</li>
-            <li class="fragment">With some more general implications</li>
-          </ul>
-          <br/><br/>
-          <div class="fragment" style="text-align: left; align: left;">
-            Outlook<br/>
-            <ul>
-              <li class="fragment">More challenging applications</li>
-              <li class="fragment">In combination with NLME</li>
-              <li class="fragment">Accuracy - simulation tradeoff</li>
-              <li class="fragment">...</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-
-
-      <!--<section data-background="#073669ff" data-background-transition="zoom">
-        <h1>Outlook</h1>
-      </section>
-
-      <section>
-        <ul>
-          <li>Finishing up</li>
-          <li>Amortized inference for mixed-effects models</li>
-          <li></li>
-        </ul>
-      </section>-->
-
-
-      <section data-background-image="img/questions.jpg" data-background-opacity="0.3">
-        <h1>Thanks! Questions?</h1>
-      </section>
 
     </div>
   </div>
@@ -356,7 +375,7 @@ Yellow #eab90c
         RevealMath, RevealZoom]
     });
     Reveal.configure({ slideNumber: 'c/t' });
-    Reveal.configure({ showSlideNumber: 'all' });
+    Reveal.configure({ showSlideNumber: 'none' });
 
   </script>
 </body>
